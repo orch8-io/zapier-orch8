@@ -1,0 +1,47 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the GitHub Release
+    env:
+      ZAPIER_DEPLOY_KEY: ${{ secrets.ZAPIER_DEPLOY_KEY }}
+      ZAPIER_APP_ID: ${{ vars.ZAPIER_APP_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+      - name: Tag must match package.json version
+        run: |
+          v="$(node -p 'require("./package.json").version')"
+          [ "v$v" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME != package.json v$v"; exit 1; }
+      - run: npm ci
+      - run: npm test
+      - run: npx --no-install zapier-platform validate --without-style
+      - run: npx --no-install zapier-platform build
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir dist
+          cp build/build.zip  "dist/zapier-orch8-$GITHUB_REF_NAME-build.zip"
+          cp build/source.zip "dist/zapier-orch8-$GITHUB_REF_NAME-source.zip"
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --title "$GITHUB_REF_NAME" --generate-notes --verify-tag
+      - name: Push to Zapier (only when ZAPIER_DEPLOY_KEY secret and ZAPIER_APP_ID variable are set)
+        if: env.ZAPIER_DEPLOY_KEY != '' && env.ZAPIER_APP_ID != ''
+        run: |
+          printf '{ "id": %s }\n' "$ZAPIER_APP_ID" > .zapierapprc
+          npx --no-install zapier-platform push
+      - name: Skip Zapier push
+        if: env.ZAPIER_DEPLOY_KEY == '' || env.ZAPIER_APP_ID == ''
+        run: echo "::notice::ZAPIER_DEPLOY_KEY secret and/or ZAPIER_APP_ID variable not set; skipped zapier-platform push."
