@@ -45,15 +45,35 @@ npm test              # jest + nock with zapier.createAppTester; no network need
 npm run validate      # local schema validation (zapier-platform validate --without-style)
 ```
 
-## Submitting to Zapier (manual, not done by this repo)
+## Install (private app, works today)
 
-Every step below runs under the maintainer's Zapier account. None of them has been run.
+The app is not listed in Zapier's public directory. The account owner can deploy it as a **private integration** in a few minutes:
 
-1. `npx zapier-platform login` (or `npm i -g zapier-platform-cli && zapier login`)
-2. `npx zapier-platform register "Orch8"`. This creates the app and writes `.zapierapprc` (gitignored; see `.zapierapprc.example`).
-3. `npx zapier-platform validate`. This includes the style checks that need a login.
-4. `npx zapier-platform push`. This uploads version `0.1.0` as a private integration.
-5. Test it privately in the Zapier editor. Invite testers with `npx zapier-platform users:add <email> 0.1.0`.
-6. Add the app's branding (logo, description, homepage) in the Zapier developer platform UI at developer.zapier.com.
-7. Once it's ready, `npx zapier-platform promote 0.1.0`, then request public listing: developer.zapier.com → your app → **Publishing** → submit for review. Zapier requires live Zaps from test users and a passing validation before approval.
-8. To release a later version: bump `version` in `package.json`, then `push`, then `promote`. Use `npx zapier-platform migrate <old> <new>` to move existing users.
+```bash
+git clone --branch v0.1.0 https://github.com/orch8-io/zapier-orch8.git && cd zapier-orch8
+npm ci
+npx zapier-platform login              # your Zapier account
+npx zapier-platform register "Orch8"   # once; writes .zapierapprc (gitignored)
+npx zapier-platform push               # uploads version 0.1.0 as a private integration
+```
+
+Then open the Zapier editor, search for **Orch8** (it shows under your private apps), and connect it with your engine URL, API key and tenant ID.
+To let teammates use it: `npx zapier-platform users:add <email> 0.1.0`, or print a shareable invite link with `npx zapier-platform users:links`.
+
+Each [GitHub Release](https://github.com/orch8-io/zapier-orch8/releases) also carries the exact `build.zip` / `source.zip` that `zapier-platform build` produced for that tag.
+
+## CI and releases
+
+- `.github/workflows/ci.yml` runs `npm test`, `zapier-platform validate --without-style` and `zapier-platform build` on every push and PR to `main` (none of these need a Zapier login).
+- Pushing a tag `vX.Y.Z` (must equal `version` in `package.json`) runs `.github/workflows/release.yml`: tests, validate, build, and a GitHub Release with the two zips.
+- The same workflow runs `zapier-platform push` **only if** both are set on the repository:
+  - secret `ZAPIER_DEPLOY_KEY`: a deploy key from https://developer.zapier.com/partner-settings/deploy-keys/ (account that owns the app);
+  - variable `ZAPIER_APP_ID`: the numeric `id` that `zapier-platform register` wrote into `.zapierapprc`.
+
+## Public listing (manual, not done yet)
+
+1. After `register` + `push` above, run `npx zapier-platform validate` (includes the style checks that need a login) and fix any findings.
+2. Add the app's branding (logo, description, homepage) at developer.zapier.com.
+3. Test privately and invite testers with `npx zapier-platform users:add <email> 0.1.0`.
+4. `npx zapier-platform promote 0.1.0`, then developer.zapier.com → your app → **Publishing** → submit for review. Zapier requires live Zaps from test users and a reachable engine plus API key for the reviewer.
+5. Later versions: bump `version`, tag, push (CI pushes if the deploy key is set), then `promote`, and `npx zapier-platform migrate <old> <new>` to move existing users.
