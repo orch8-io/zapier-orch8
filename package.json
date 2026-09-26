@@ -5,7 +5,9 @@
   "main": "index.js",
   "license": "MIT",
   "private": true,
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "test": "jest --testTimeout 10000 --runInBand",
     "validate": "zapier-platform validate --without-style"
@@ -17,5 +19,9 @@
     "jest": "^29.7.0",
     "nock": "^13.5.6",
     "zapier-platform-cli": "19.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/orch8-io/zapier-orch8.git"
   }
 }
